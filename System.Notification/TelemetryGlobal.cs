@@ -6,8 +6,7 @@ using System.Threading.Tasks;
 
 namespace System.Notification
 {
-    public interface ITelemetryDispatcher
+    public static class TelemetryGlobal
     {
-        IDisposable Subscribe(ITelemetryNotifier subscriber);
     }
 }

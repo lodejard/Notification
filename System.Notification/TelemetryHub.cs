@@ -14,7 +14,9 @@ namespace System.Notification
     /// </summary>
     /// TODO: What IObserviable support should we add if any (it could be added later)
     public class TelemetryHub : ITelemetryDispatcher, ITelemetryNotifier
-    {
+    { 
+        private static TelemetryHub Default = new TelemetryHub();
+
         /// <summary>
         /// This is the notification hub that is used by default by the class library.   
         /// Generally you don't want to make your own but rather have everyone use this one, which
@@ -22,7 +24,14 @@ namespace System.Notification
         /// The main reason not to us this one is that you WANT isolation from other 
         /// events in the system (e.g. multi-tenancy).  
         /// </summary>
-        public static TelemetryHub Default = new TelemetryHub();
+        public static ITelemetryDispatcher DefaultDispatcher => Default.Dispatcher;
+
+        public static ITelemetryNotifier DefaultNotifier => Default.Notifier;
+
+
+        public ITelemetryDispatcher Dispatcher { get { return this; } }
+
+        public ITelemetryNotifier Notifier { get { return this; } }
 
         /// <summary>
         /// Make a new notifier, it is a INotifier, which means the returned result can be used to 
@@ -35,7 +44,7 @@ namespace System.Notification
         { }
 
         // INotfier implementation
-        public bool ShouldNotify(string notificationName)
+        bool ITelemetryNotifier.ShouldNotify(string notificationName)
         {
             for (var curSubscription = m_subscriptions; curSubscription != null; curSubscription = curSubscription.Next)
             {
@@ -45,7 +54,7 @@ namespace System.Notification
             return false;
         }
 
-        public void Notify(string notificationName, object parameters)
+        void ITelemetryNotifier.Notify(string notificationName, object parameters)
         {
             for (var curSubscription = m_subscriptions; curSubscription != null; curSubscription = curSubscription.Next)
                 curSubscription.Subscriber.Notify(notificationName, parameters);
@@ -57,10 +66,10 @@ namespace System.Notification
         /// subscribers will have their ShouldNotify and Notify methods called
         /// whenever a producer is needs to cause a notification.  
         /// </summary>
-        public IDisposable Subscribe(ITelemetryNotifier subscriber)
+        IDisposable ITelemetryDispatcher.Subscribe(ITelemetryNotifier subscriber)
         {
             Subscription newSubscription = new Subscription() { Subscriber = subscriber, Owner = this, Next = m_subscriptions };
-            while (Interlocked.CompareExchange(ref m_subscriptions, newSubscription, newSubscription.Next) != newSubscription)
+            while (Interlocked.CompareExchange(ref m_subscriptions, newSubscription, newSubscription.Next) != newSubscription.Next)
                 newSubscription.Next = m_subscriptions;
             return newSubscription;
         }

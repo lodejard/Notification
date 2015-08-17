@@ -42,6 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ITelemetryDispatcher.cs" />
+    <Compile Include="TelemetryGlobal.cs" />
     <Compile Include="TelemetryHub.cs" />
     <Compile Include="ITelemetryNotifier.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

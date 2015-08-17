@@ -22,7 +22,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// The EventSource that all Notifications get forwarded to.  
         /// </summary>
-        public static NotificationEventSource LogForDefaultNotificationHub = new NotificationEventSource(TelemetryHub.Default);
+        public static NotificationEventSource LogForDefaultNotificationHub = new NotificationEventSource(TelemetryHub.DefaultDispatcher);
 
         /// <summary>
         /// This is really a dummy function so that you can insure that the static variable NotificationEventSource.Log() 
@@ -43,10 +43,10 @@ namespace System.Diagnostics.Tracing
 
         #region private
 
-        private NotificationEventSource(TelemetryHub notifier)
+        private NotificationEventSource(ITelemetryDispatcher dispatcher)
             : base(EventSourceSettings.EtwSelfDescribingEventFormat)
         {
-            m_notifier = notifier;
+            m_dispatcher = dispatcher;
         }
 
         [NonEvent]
@@ -64,7 +64,7 @@ namespace System.Diagnostics.Tracing
         protected override void OnEventCommand(EventCommandEventArgs command)
         {
             if (m_subscription == null && IsEnabled())
-                m_subscription = m_notifier.Subscribe(this);
+                m_subscription = m_dispatcher.Subscribe(this);
             else if (m_subscription != null && !IsEnabled())
             {
                 m_subscription.Dispose();
@@ -73,7 +73,7 @@ namespace System.Diagnostics.Tracing
         }
 
         IDisposable m_subscription;
-        TelemetryHub m_notifier;
+        ITelemetryDispatcher m_dispatcher;
 
         #endregion private
     }
@@ -88,14 +88,14 @@ namespace System.Diagnostics.Tracing
 
             // To set up a sink for notifications you implement an INotifier and subscribe to the hub you want
             // as long as the subscription is not disposed, the INotifier will get callbacks.  
-            using (var subscription = TelemetryHub.Default.Subscribe(new MyNotificationReceiver()))
+            using (var subscription = TelemetryHub.DefaultDispatcher.Subscribe(new MyNotificationReceiver()))
             {
                 // Here we simulate what might happen in the class library where we don't use dependency injection.
                 // You can also get you iNotifier by asking IServiceProvider which might make one per tenant.  
-                ITelemetryNotifier iNotifier = TelemetryHub.Default;
+                ITelemetryNotifier iNotifier = TelemetryHub.DefaultNotifier;
 
                 // Normally this would be in code that was receiving the HttpRequestResponse
-                HttpRequestMessage message = null;
+                HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, "http://localhost/");
 
                 // Here we log for simple cases as show below we don't need to do the ShuldNotify, but we are
                 // showing the general case where there might be significant work setting up the payload. 

@@ -13,7 +13,7 @@ namespace System.Notification
     /// implemented INotifiy) can be hooked up.  
     /// </summary>
     /// TODO: What IObserviable support should we add if any (it could be added later)
-    public class NotificationHub : INotifier
+    public class TelemetryHub : ITelemetryDispatcher, ITelemetryNotifier
     {
         /// <summary>
         /// This is the notification hub that is used by default by the class library.   
@@ -22,7 +22,7 @@ namespace System.Notification
         /// The main reason not to us this one is that you WANT isolation from other 
         /// events in the system (e.g. multi-tenancy).  
         /// </summary>
-        public static NotificationHub Default = new NotificationHub();
+        public static TelemetryHub Default = new TelemetryHub();
 
         /// <summary>
         /// Make a new notifier, it is a INotifier, which means the returned result can be used to 
@@ -31,7 +31,7 @@ namespace System.Notification
         /// (multi-casting).    Generally you should not be making your own notifier but use the
         /// Notifier.DefaultNotifier, so that notifications are as 'public' as possible.  
         /// </summary>
-        public NotificationHub()
+        public TelemetryHub()
         { }
 
         // INotfier implementation
@@ -57,7 +57,7 @@ namespace System.Notification
         /// subscribers will have their ShouldNotify and Notify methods called
         /// whenever a producer is needs to cause a notification.  
         /// </summary>
-        public IDisposable Subscribe(INotifier subscriber)
+        public IDisposable Subscribe(ITelemetryNotifier subscriber)
         {
             Subscription newSubscription = new Subscription() { Subscriber = subscriber, Owner = this, Next = m_subscriptions };
             while (Interlocked.CompareExchange(ref m_subscriptions, newSubscription, newSubscription.Next) != newSubscription)
@@ -70,8 +70,8 @@ namespace System.Notification
         // Note that Subscriptions are READ ONLY.   This means you never update any fields (even on removal!)
         private class Subscription : IDisposable
         {
-            internal INotifier Subscriber;
-            internal NotificationHub Owner;       // The hub this is a subscription for.  
+            internal ITelemetryNotifier Subscriber;
+            internal TelemetryHub Owner;       // The hub this is a subscription for.  
             internal Subscription Next;           // Linked list
 
             public void Dispose()

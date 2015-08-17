@@ -41,8 +41,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="NotificationHub.cs" />
-    <Compile Include="INotifier.cs" />
+    <Compile Include="ITelemetryDispatcher.cs" />
+    <Compile Include="TelemetryHub.cs" />
+    <Compile Include="ITelemetryNotifier.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

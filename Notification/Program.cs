@@ -17,12 +17,12 @@ namespace System.Diagnostics.Tracing
     /// This class is designed to 
     /// </summary>
     // TODO we would like this to be on by default.  Currently you have to do ListenToDefaultNotifier() to turn it on.  
-    class NotificationEventSource : EventSource, INotifier
+    class NotificationEventSource : EventSource, ITelemetryNotifier
     {
         /// <summary>
         /// The EventSource that all Notifications get forwarded to.  
         /// </summary>
-        public static NotificationEventSource LogForDefaultNotificationHub = new NotificationEventSource(NotificationHub.Default);
+        public static NotificationEventSource LogForDefaultNotificationHub = new NotificationEventSource(TelemetryHub.Default);
 
         /// <summary>
         /// This is really a dummy function so that you can insure that the static variable NotificationEventSource.Log() 
@@ -43,20 +43,20 @@ namespace System.Diagnostics.Tracing
 
         #region private
 
-        private NotificationEventSource(NotificationHub notifier)
+        private NotificationEventSource(TelemetryHub notifier)
             : base(EventSourceSettings.EtwSelfDescribingEventFormat)
         {
             m_notifier = notifier;
         }
 
         [NonEvent]
-        bool INotifier.ShouldNotify(string notificationName)
+        bool ITelemetryNotifier.ShouldNotify(string notificationName)
         {
             return true;
         }
 
         [NonEvent]
-        void INotifier.Notify(string notificationName, object parameters)
+        void ITelemetryNotifier.Notify(string notificationName, object parameters)
         {
             throw new NotImplementedException();
         }
@@ -73,7 +73,7 @@ namespace System.Diagnostics.Tracing
         }
 
         IDisposable m_subscription;
-        NotificationHub m_notifier;
+        TelemetryHub m_notifier;
 
         #endregion private
     }
@@ -88,11 +88,11 @@ namespace System.Diagnostics.Tracing
 
             // To set up a sink for notifications you implement an INotifier and subscribe to the hub you want
             // as long as the subscription is not disposed, the INotifier will get callbacks.  
-            using (var subscription = NotificationHub.Default.Subscribe(new MyNotificationReceiver()))
+            using (var subscription = TelemetryHub.Default.Subscribe(new MyNotificationReceiver()))
             {
                 // Here we simulate what might happen in the class library where we don't use dependency injection.
                 // You can also get you iNotifier by asking IServiceProvider which might make one per tenant.  
-                INotifier iNotifier = NotificationHub.Default;
+                ITelemetryNotifier iNotifier = TelemetryHub.Default;
 
                 // Normally this would be in code that was receiving the HttpRequestResponse
                 HttpRequestMessage message = null;
@@ -110,7 +110,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        class MyNotificationReceiver : INotifier
+        class MyNotificationReceiver : ITelemetryNotifier
         {
             public void Notify(string notificationName, object parameters)
             {

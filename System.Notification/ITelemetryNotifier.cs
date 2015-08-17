@@ -11,7 +11,7 @@ namespace System.Notification
     /// you call out to 'interested' parties and you can pass an object (which 
     /// using anonymous types you can pass many separate data items), to your subscriber
     /// </summary>
-    public interface INotifier
+    public interface ITelemetryNotifier
     {
         /// <summary>
         /// Notify is a generic way of logging complex payloads.  Each notification

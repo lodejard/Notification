@@ -42,8 +42,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ITelemetryDispatcher.cs" />
+    <Compile Include="ITelemetryListener.cs" />
     <Compile Include="TelemetryHub.cs" />
-    <Compile Include="ITelemetryNotifier.cs" />
+    <Compile Include="ITelemetrySource.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

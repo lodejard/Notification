@@ -24,11 +24,11 @@ namespace System.Notification
         /// </summary>
         public static ITelemetryDispatcher DefaultDispatcher => s_default.Dispatcher;
 
-        public static ITelemetryNotifier DefaultNotifier => s_default.Notifier;
+        public static ITelemetrySource DefaultSource => s_default.Source;
 
         public ITelemetryDispatcher Dispatcher => m_dispatcher;
 
-        public ITelemetryNotifier Notifier => m_notifier;
+        public ITelemetrySource Source => m_source;
 
         /// <summary>
         /// Make a new notifier, it is a INotifier, which means the returned result can be used to 
@@ -44,35 +44,35 @@ namespace System.Notification
         public TelemetryHub(bool connectToDefault)
         {
             m_dispatcher = new HubDispatcher();
-            m_notifier = new HubNotifier(m_dispatcher);
+            m_source = new HubSource(m_dispatcher);
 
             if (connectToDefault)
             {
-                var dispatcherFromDefaultNotifier = (ITelemetryDispatcher)s_default.Notifier;
-                var notifierFromDefaultDispatcher = (ITelemetryNotifier)s_default.Dispatcher;
-                var dispatcherFromThisNotifier = (ITelemetryDispatcher)Notifier;
-                var notifierFromThisDispatcher = (ITelemetryNotifier)Dispatcher;
+                var dispatcherFromDefaultNotifier = (ITelemetryDispatcher)s_default.Source;
+                var listenerFromDefaultDispatcher = (ITelemetryListener)s_default.Dispatcher;
+                var dispatcherFromThisNotifier = (ITelemetryDispatcher)Source;
+                var listenerFromThisDispatcher = (ITelemetryListener)Dispatcher;
 
-                m_subscriptionFromDefaultNotifier = dispatcherFromDefaultNotifier.Subscribe(notifierFromThisDispatcher);
-                m_subscriptionToDefaultDispatcher = dispatcherFromThisNotifier.Subscribe(notifierFromDefaultDispatcher);
+                m_subscriptionFromDefaultSource = dispatcherFromDefaultNotifier.Subscribe(listenerFromThisDispatcher);
+                m_subscriptionToDefaultDispatcher = dispatcherFromThisNotifier.Subscribe(listenerFromDefaultDispatcher);
             }
         }
 
         public void Dispose()
         {
-            m_subscriptionFromDefaultNotifier?.Dispose();
+            m_subscriptionFromDefaultSource?.Dispose();
             m_subscriptionToDefaultDispatcher?.Dispose();
         }
 
 
         #region private
 
-        private class HubDispatcher : ITelemetryDispatcher, ITelemetryNotifier
+        private class HubDispatcher : ITelemetryDispatcher, ITelemetryListener
         {
             Subscription m_subscriptions; // A linked list of subsciptions   Note this is ENTIRELY (DEEP) read only.   
 
             // INotfier implementation
-            public virtual bool ShouldNotify(string notificationName)
+            public bool ShouldNotify(string notificationName)
             {
                 for (var curSubscription = m_subscriptions; curSubscription != null; curSubscription = curSubscription.Next)
                 {
@@ -82,7 +82,7 @@ namespace System.Notification
                 return false;
             }
 
-            public virtual void Notify(string notificationName, object parameters)
+            public void Notify(string notificationName, object parameters)
             {
                 for (var curSubscription = m_subscriptions; curSubscription != null; curSubscription = curSubscription.Next)
                     curSubscription.Subscriber.Notify(notificationName, parameters);
@@ -94,7 +94,7 @@ namespace System.Notification
             /// subscribers will have their ShouldNotify and Notify methods called
             /// whenever a producer is needs to cause a notification.  
             /// </summary>
-            IDisposable ITelemetryDispatcher.Subscribe(ITelemetryNotifier subscriber)
+            IDisposable ITelemetryDispatcher.Subscribe(ITelemetryListener subscriber)
             {
                 Subscription newSubscription = new Subscription() { Subscriber = subscriber, Owner = this, Next = m_subscriptions };
                 while (Interlocked.CompareExchange(ref m_subscriptions, newSubscription, newSubscription.Next) != newSubscription.Next)
@@ -105,7 +105,7 @@ namespace System.Notification
             // Note that Subscriptions are READ ONLY.   This means you never update any fields (even on removal!)
             private class Subscription : IDisposable
             {
-                internal ITelemetryNotifier Subscriber;
+                internal ITelemetryListener Subscriber;
                 internal HubDispatcher Owner;       // The hub this is a subscription for.  
                 internal Subscription Next;           // Linked list
 
@@ -136,27 +136,27 @@ namespace System.Notification
             }
         }
 
-        private class HubNotifier : HubDispatcher
+        private class HubSource : HubDispatcher, ITelemetrySource
         {
-            public HubNotifier(HubDispatcher dispatcher)
+            public HubSource(HubDispatcher dispatcher)
             {
                 m_dispatcher = dispatcher;
             }
 
             #region private
-            public override bool ShouldNotify(string notificationName)
+            bool ITelemetrySource.ShouldNotify(string notificationName)
             {
                 if (m_dispatcher.ShouldNotify(notificationName))
                 {
                     return true;
                 }
-                return base.ShouldNotify(notificationName);
+                return ShouldNotify(notificationName);
             }
 
-            public override void Notify(string notificationName, object parameters)
+            void ITelemetrySource.Notify(string notificationName, object parameters)
             {
                 m_dispatcher.Notify(notificationName, parameters);
-                base.Notify(notificationName, parameters);
+                Notify(notificationName, parameters);
             }
 
             HubDispatcher m_dispatcher;
@@ -166,9 +166,9 @@ namespace System.Notification
 
         static TelemetryHub s_default = new TelemetryHub(connectToDefault: false);
 
-        HubNotifier m_notifier;
+        HubSource m_source;
         HubDispatcher m_dispatcher;
-        IDisposable m_subscriptionFromDefaultNotifier;
+        IDisposable m_subscriptionFromDefaultSource;
         IDisposable m_subscriptionToDefaultDispatcher;
 
         #endregion

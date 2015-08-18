@@ -8,6 +8,6 @@ namespace System.Notification
 {
     public interface ITelemetryDispatcher
     {
-        IDisposable Subscribe(ITelemetryNotifier subscriber);
+        IDisposable Subscribe(ITelemetryListener listener);
     }
 }

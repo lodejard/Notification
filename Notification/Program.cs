@@ -10,82 +10,12 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Notification;
 
-namespace System.Diagnostics.Tracing
+namespace System.Notification
 {
-    // TODO this class is not likely to be in the framework itself
-    /// <summary>
-    /// This class is designed to 
-    /// </summary>
-    // TODO we would like this to be on by default.  Currently you have to do ListenToDefaultNotifier() to turn it on.  
-    class NotificationEventSource : EventSource, ITelemetryListener
-    {
-        /// <summary>
-        /// The EventSource that all Notifications get forwarded to.  
-        /// </summary>
-        public static NotificationEventSource LogForDefaultNotificationHub = new NotificationEventSource(TelemetryHub.DefaultDispatcher);
-
-        /// <summary>
-        /// This is really a dummy function so that you can insure that the static variable NotificationEventSource.Log() 
-        /// is touched (and thus initialized).  
-        /// </summary>
-        public void Touch() { }
-
-        /// <summary>
-        /// For a given notification, set the default payload for it.  This is a space separated list 
-        /// strings of the form Name=Name1.Name2), which indicate which effectively give a 
-        /// transformation from the notification object to the payload to be logged. 
-        /// TODO do we need this?  potential for 'fighting' over it
-        /// </summary>
-        public void SetDefaultPayload(string notficationName, string serializationSpecification)
-        {
-            throw new NotImplementedException();
-        }
-
-        #region private
-
-        private NotificationEventSource(ITelemetryDispatcher dispatcher)
-            : base(EventSourceSettings.EtwSelfDescribingEventFormat)
-        {
-            m_dispatcher = dispatcher;
-        }
-
-        [NonEvent]
-        bool ITelemetryListener.ShouldNotify(string notificationName)
-        {
-            return true;
-        }
-
-        [NonEvent]
-        void ITelemetryListener.Notify(string notificationName, object parameters)
-        {
-            throw new NotImplementedException();
-        }
-
-        protected override void OnEventCommand(EventCommandEventArgs command)
-        {
-            if (m_subscription == null && IsEnabled())
-                m_subscription = m_dispatcher.Subscribe(this);
-            else if (m_subscription != null && !IsEnabled())
-            {
-                m_subscription.Dispose();
-                m_subscription = null;
-            }
-        }
-
-        IDisposable m_subscription;
-        ITelemetryDispatcher m_dispatcher;
-
-        #endregion private
-    }
-
     class Program
     {
-        static void Main()
+        static void Main1()
         {
-            // This allows EventSources to listen to notifications.  
-            // TODO this seems counterintuitive/unnecessary.  
-            NotificationEventSource.LogForDefaultNotificationHub.Touch();
-
             // To set up a sink for notifications you implement an INotifier and subscribe to the hub you want
             // as long as the subscription is not disposed, the INotifier will get callbacks.  
             using (var subscription = TelemetryHub.DefaultDispatcher.Subscribe(new MyNotificationListener("Default")))

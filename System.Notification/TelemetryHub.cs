@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 namespace System.Notification
 {
     /// <summary>
-    /// A notificationHub is a place were notification producers (things that
-    /// call INotify.Notify and subscribers (things that call AddSubscriber, and
-    /// implemented INotifiy) can be hooked up.  
+    /// A TelemetryListener is a place were notification producers (things that
+    /// call ITelemetryNotifier.Notify and subscribers (things that call 
+    /// ITelemetryDispatcher.AddSubscriber, and implemented INotifiy) can be hooked up.  
     /// </summary>
     /// TODO: What IObserviable support should we add if any (it could be added later)
     public class TelemetryHub : IDisposable
@@ -25,6 +25,8 @@ namespace System.Notification
         public static ITelemetryDispatcher DefaultDispatcher => s_default.Dispatcher;
 
         public static ITelemetrySource DefaultSource => s_default.Source;
+
+        public static event Action<TelemetryHub>  AllHubs;
 
         public ITelemetryDispatcher Dispatcher => m_dispatcher;
 
@@ -63,7 +65,6 @@ namespace System.Notification
             m_subscriptionFromDefaultSource?.Dispose();
             m_subscriptionToDefaultDispatcher?.Dispose();
         }
-
 
         #region private
 
@@ -106,7 +107,7 @@ namespace System.Notification
             private class Subscription : IDisposable
             {
                 internal ITelemetryListener Subscriber;
-                internal HubDispatcher Owner;       // The hub this is a subscription for.  
+                internal HubDispatcher Owner;         // The hub this is a subscription for.  
                 internal Subscription Next;           // Linked list
 
                 public void Dispose()

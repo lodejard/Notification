@@ -29,27 +29,27 @@ namespace System.Notification
                 {
                     // Here we simulate what might happen in the class library where we don't use dependency injection.
                     // You can also get you iNotifier by asking IServiceProvider which might make one per tenant.  
-                    ITelemetrySource defaultSource = TelemetryHub.DefaultSource;
-                    ITelemetrySource islandSource1 = island1.Source;
-                    ITelemetrySource islandSource2 = island2.Source;
+                    ITelemetry defaultTelemetry = TelemetryHub.DefaultSource.ConnectTelemetry("OutgoingHttpRequestReturns");
+                    ITelemetry islandTelemetry1 = island1.Source.ConnectTelemetry("TalkingOnIsland");
+                    ITelemetry islandTelemetry2 = island2.Source.ConnectTelemetry("TalkingOnIsland");
 
                     // Normally this would be in code that was receiving the HttpRequestResponse
                     HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, "http://localhost/");
 
                     // Here we log for simple cases as show below we don't need to do the ShuldNotify, but we are
                     // showing the general case where there might be significant work setting up the payload. 
-                    if (defaultSource.ShouldNotify("OutgoingHttpRequestReturns"))
+                    if (defaultTelemetry.IsEnabled())
                     {
                         // Here we are assuming we would like to log both to EventSource and direct subscribers to
                         // NotificationHub.   Because of this the payload class contains both serializable fields (like 
                         // ReqeustUri which we resolve to a string), as well as rich objects (like Message) that are
                         // stripped from EventSource serialization.  
-                        defaultSource.Notify("OutgoingHttpRequestReturns", new { RequestUri = message.RequestUri.ToString(), Message = message });
+                        defaultTelemetry.Write(new { RequestUri = message.RequestUri.ToString(), Message = message });
                     }
 
-                    islandSource1.Notify("TalkingOnIsland", "Island One");
+                    islandTelemetry1.Write(new { Message = "Island One" });
 
-                    islandSource2.Notify("TalkingOnIsland", "Island Two");
+                    islandTelemetry2.Write(new { Message = "Island Two" });
                 }
             }
         }
@@ -63,16 +63,31 @@ namespace System.Notification
                 m_zone = zone;
             }
 
-            public void Notify(string notificationName, object parameters)
+            public ITelemetry ConnectTelemetry(string name)
             {
-                Console.WriteLine("'{2}' got a notification {0} with parameters of type {1}", notificationName, parameters, m_zone);
+                return new Telemetry(this, name);
             }
 
-            public bool ShouldNotify(string notificationName)
+            class Telemetry : ITelemetry
             {
-                return true;
+                MyNotificationListener m_self;
+                string m_name;
+
+                public Telemetry(MyNotificationListener self, string name)
+                {
+                    m_self = self;
+                    m_name = name;
+                }
+                public void Write(object parameters)
+                {
+                    Console.WriteLine("'{2}' got a notification {0} with parameters of type {1}", m_name, parameters, m_self.m_zone);
+                }
+
+                public bool IsEnabled()
+                {
+                    return true;
+                }
             }
         }
-
     }
 }

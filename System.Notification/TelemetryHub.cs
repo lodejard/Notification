@@ -26,7 +26,7 @@ namespace System.Notification
 
         public static ITelemetrySource DefaultSource => s_default.Source;
 
-        public static event Action<TelemetryHub>  AllHubs;
+        public static event Action<TelemetryHub> AllHubs;
 
         public ITelemetryDispatcher Dispatcher => m_dispatcher;
 
@@ -71,24 +71,12 @@ namespace System.Notification
         private class HubDispatcher : ITelemetryDispatcher, ITelemetryListener
         {
             Subscription m_subscriptions; // A linked list of subsciptions   Note this is ENTIRELY (DEEP) read only.   
+            readonly HubDispatcher m_associated;
 
-            // INotfier implementation
-            public bool ShouldNotify(string notificationName)
+            public HubDispatcher(HubDispatcher associated = null)
             {
-                for (var curSubscription = m_subscriptions; curSubscription != null; curSubscription = curSubscription.Next)
-                {
-                    if (curSubscription.Subscriber.ShouldNotify(notificationName))
-                        return true;
-                }
-                return false;
+                m_associated = associated;
             }
-
-            public void Notify(string notificationName, object parameters)
-            {
-                for (var curSubscription = m_subscriptions; curSubscription != null; curSubscription = curSubscription.Next)
-                    curSubscription.Subscriber.Notify(notificationName, parameters);
-            }
-
             // Subscription implementation 
             /// <summary>
             /// Add a subscriber, Dispose the returned value to unsubscribe.  Every
@@ -101,6 +89,72 @@ namespace System.Notification
                 while (Interlocked.CompareExchange(ref m_subscriptions, newSubscription, newSubscription.Next) != newSubscription.Next)
                     newSubscription.Next = m_subscriptions;
                 return newSubscription;
+            }
+
+            public virtual ITelemetry ConnectTelemetry(string name)
+            {
+                return new Telemetry(this, name);
+            }
+
+            protected class Telemetry : ITelemetry
+            {
+                HubDispatcher _self;
+                string _name;
+                TelemetryLink _links;
+                Subscription _subscriptionInstance;
+
+                public Telemetry(HubDispatcher self, string name)
+                {
+                    _self = self;
+                    _name = name;
+                }
+
+                public void Write(object parameters)
+                {
+                    for (var link = GetLinks(); link != null; link = link.Next)
+                    {
+                        link.Target.Write(parameters);
+                    }
+                }
+
+                public bool IsEnabled()
+                {
+                    for (var link = GetLinks(); link != null; link = link.Next)
+                    {
+                        if (link.Target.IsEnabled())
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+
+                TelemetryLink GetLinks()
+                {
+                    var subs = _self.m_subscriptions;
+                    if (_subscriptionInstance == subs)
+                    {
+                        return _links;
+                    }
+                    TelemetryLink links = null;
+                    if (_self.m_associated != null)
+                    {
+                        links = new TelemetryLink { Target = _self.m_associated.ConnectTelemetry(_name) };
+                    }
+                    for (var sub = subs; sub != null; sub = sub.Next)
+                    {
+                        links = new TelemetryLink { Next = links, Target = sub.Subscriber.ConnectTelemetry(_name) };
+                    }
+                    _subscriptionInstance = subs;
+                    _links = links;
+                    return _links;
+                }
+
+                class TelemetryLink
+                {
+                    public ITelemetry Target;
+                    public TelemetryLink Next;
+                }
             }
 
             // Note that Subscriptions are READ ONLY.   This means you never update any fields (even on removal!)
@@ -139,29 +193,10 @@ namespace System.Notification
 
         private class HubSource : HubDispatcher, ITelemetrySource
         {
-            public HubSource(HubDispatcher dispatcher)
+            public HubSource(HubDispatcher dispatcher) : base(dispatcher)
             {
-                m_dispatcher = dispatcher;
             }
 
-            #region private
-            bool ITelemetrySource.ShouldNotify(string notificationName)
-            {
-                if (m_dispatcher.ShouldNotify(notificationName))
-                {
-                    return true;
-                }
-                return ShouldNotify(notificationName);
-            }
-
-            void ITelemetrySource.Notify(string notificationName, object parameters)
-            {
-                m_dispatcher.Notify(notificationName, parameters);
-                Notify(notificationName, parameters);
-            }
-
-            HubDispatcher m_dispatcher;
-            #endregion
         }
 
 

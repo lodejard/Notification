@@ -117,14 +117,9 @@ public static class TelemetryDemo
             m_dispatcher = dispatcher;
         }
 
-        [NonEvent]
-        bool ITelemetryListener.ShouldNotify(string notificationName)
-        {
-            return true;
-        }
 
         [NonEvent]
-        void ITelemetryListener.Notify(string notificationName, object parameters)
+        ITelemetry ITelemetryListener.ConnectTelemetry(string name)
         {
             throw new NotImplementedException();
         }
